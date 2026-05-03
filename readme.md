@@ -1,8 +1,8 @@
-# BidShield 🛡️
+# BidShield 
 
 BidShield is an AI-powered procurement fraud detection system designed to identify bid-rigging, collusion, and anomalies in government tenders.
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 graph TD
@@ -16,7 +16,7 @@ graph TD
     H --> I[Results + Explanations + Audit Log UI]
 ```
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 - Node.js (for the frontend)
