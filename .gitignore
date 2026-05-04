@@ -6,6 +6,7 @@ client/out/
 client/build/
 client/.vercel/
 
+main.lock
 # Python
 venv/
 server/venv/
