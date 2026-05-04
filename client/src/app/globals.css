@@ -1,25 +1,55 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --gov-blue: #1a3a5c;
+  --gov-blue-dark: #0f2440;
+  --gov-gold: #b8860b;
+  --gov-red: #8b0000;
+  --gov-green: #1e5631;
+  --gov-amber: #92400e;
+  --bg-cream: #faf9f6;
+  --bg-white: #ffffff;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --border: #d1d5db;
 }
 
 body {
-  color: #111827;
-  background-color: #f9fafb;
+  background-color: var(--bg-cream);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+/* Sharp corners for all containers */
+* {
+  border-radius: 0 !important;
+}
+
+/* Except very subtle ones for internal cards if requested, but user said strictly sharp */
+.gov-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-gov-primary {
+  background-color: var(--gov-blue);
+  color: white;
+  padding: 12px 32px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-gov-primary:hover {
+  background-color: var(--gov-blue-dark);
+}
+
+.status-box {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
 }

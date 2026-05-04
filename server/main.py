@@ -63,35 +63,46 @@ def get_collusion_risk(bidder_id: str):
 
 @app.get("/demo/full-analysis")
 def full_tender_analysis():
-    bidders = get_demo_bidders()
-    network = graph.get_full_network()
-    star_graphs = graph.detect_star_graphs()
-    clustering = graph.detect_bid_clustering(0.5)
-    benford = StatisticalDetector.benfords_law_test([b["amount"] for b in DEMO_BIDS])
-    
-    for bidder in bidders["bidders"]:
-        if bidder["id"] in ["B2", "B5"]:
-            bidder["collusion_risk"] = 79
-            bidder["risk_level"] = "HIGH"
-            bidder["flags"] = ["Shared director: Rajesh Kumar", "Bid clustering: 0.41% difference"]
-    
-    return {
-        "tender": bidders,
-        "fraud_network": network,
-        "detections": {
-            "star_graphs": star_graphs,
-            "bid_clustering": clustering,
-            "benfords_law": benford
-        },
-        "summary": {
-            "total_bidders": 10,
-            "eligible": 6,
-            "ineligible": 3,
-            "manual_review": 1,
-            "collusion_flags": 2,
-            "risk_level": "HIGH"
+    try:
+        bidders = get_demo_bidders()
+        try:
+            network = graph.get_full_network()
+            star_graphs = graph.detect_star_graphs()
+            clustering = graph.detect_bid_clustering(0.5)
+        except Exception as e:
+            print(f"Graph Fallback: {e}")
+            network = {"nodes": [], "edges": []}
+            star_graphs = []
+            clustering = []
+            
+        benford = StatisticalDetector.benfords_law_test([b["amount"] for b in DEMO_BIDS])
+        
+        for bidder in bidders["bidders"]:
+            if bidder["id"] in ["B2", "B5"]:
+                bidder["collusion_risk"] = 79
+                bidder["risk_level"] = "HIGH"
+                bidder["flags"] = ["Shared director: Rajesh Kumar", "Bid clustering: 0.41% difference"]
+        
+        return {
+            "tender": bidders,
+            "fraud_network": network,
+            "detections": {
+                "star_graphs": star_graphs,
+                "bid_clustering": clustering,
+                "benfords_law": benford
+            },
+            "summary": {
+                "total_bidders": 10,
+                "eligible": 6,
+                "ineligible": 3,
+                "manual_review": 1,
+                "collusion_flags": 2,
+                "risk_level": "HIGH"
+            }
         }
-    }
+    except Exception as e:
+        print(f"Critical Fallback: {e}")
+        return {"error": str(e)}
 
 @app.on_event("shutdown")
 def shutdown():

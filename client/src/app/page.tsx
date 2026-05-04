@@ -1,236 +1,235 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { 
   Shield, AlertTriangle, CheckCircle, Clock, Users, FileText, 
-  Activity, BarChart3, Upload, ChevronDown, ChevronUp, History, Download 
+  Activity, BarChart3, ChevronDown, ChevronUp, History, Download, 
+  Lock, Unlock, AlertCircle, Terminal, Search, ChevronRight
 } from 'lucide-react';
 import FraudNetworkGraph from '../components/FraudNetworkGraph';
 import BenfordChart from '../components/BenfordChart';
 import DemoLauncher from '../components/DemoLauncher';
 import ManualReviewQueue from '../components/ManualReviewQueue';
+import CriteriaApproval from '../components/CriteriaApproval';
 import { demoBidders, demoTender, Bidder } from '../lib/demoData';
 import { getFullAnalysis } from '../../lib/api';
-
-interface AuditEntry {
-  id: string;
-  timestamp: string;
-  type: 'system' | 'officer';
-  action: string;
-  details: string;
-}
+import { AuditLog, AuditEntry } from '../lib/audit';
 
 export default function Dashboard() {
   const [data, setData] = useState<any>(null);
-  const [view, setView] = useState<'launch' | 'results'>('launch');
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [view, setView] = useState<'launch' | 'approval' | 'results'>('launch');
   const [showAudit, setShowAudit] = useState(false);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [isIntegrityValid, setIsIntegrityValid] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  
+  const auditLog = useRef(new AuditLog());
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const addLog = async (actor: "SYSTEM" | "OFFICER", action: any, details: string, bidderId?: string) => {
+    await auditLog.current.addEntry({ actor, action, details, bidderId });
+    setAuditEntries(auditLog.current.getEntries());
+    setIsIntegrityValid(await auditLog.current.verifyIntegrity());
+  };
 
   useEffect(() => {
     const fetchBaseData = async () => {
       try {
         const res = await getFullAnalysis();
-        const initialData = {
+        setData({
           ...res.data,
-          tender: { bidders: demoBidders },
-          summary: {
-            total_bidders: 10,
-            eligible: 6,
-            ineligible: 3,
-            manual_review: 1,
-            collusion_flags: 2,
-            risk_level: "HIGH"
-          }
-        };
-        setData(initialData);
-        
-        setAuditLog([
-          { id: '1', timestamp: new Date().toLocaleTimeString(), type: 'system', action: 'Data Ingestion', details: 'Extracted 10 bidder submissions for Tender TNDR-2026' },
-          { id: '2', timestamp: new Date().toLocaleTimeString(), type: 'system', action: 'Fraud Detection', details: 'Flagged Bidder 2 & 5 for Collusion Risk (Shared Director)' },
-          { id: '3', timestamp: new Date().toLocaleTimeString(), type: 'system', action: 'Validation', details: 'Bidder 7 rejected: Turnover ₹3.2cr < threshold ₹5cr' }
-        ]);
-      } catch (e) {
-        console.error(e);
-      }
+          tender: { bidders: demoBidders }
+        });
+      } catch (e) { console.error(e); }
     };
     fetchBaseData();
   }, []);
 
-  const handleResolveManualReview = (bidderId: string, resolution: 'eligible' | 'ineligible', value: number) => {
+  const handleStartDemo = async () => {
+    setView('approval');
+    await addLog("SYSTEM", "EVALUATION", `Initiated demo evaluation for Tender ${demoTender.id}`);
+  };
+
+  const handleApproveRegistry = async () => {
+    setView('results');
+    await addLog("OFFICER", "CRITERIA_REGISTRY_APPROVAL", `Officer authorized evaluation registry (${demoTender.criteria.length} criteria)`);
+    
+    for (const bidder of demoBidders) {
+        if (bidder.status === 'ineligible') {
+            await addLog("SYSTEM", "EVALUATION", `Bidder Ineligible: ${bidder.rejection_reason}`, bidder.id);
+        } else if (bidder.status === 'manual_review') {
+            await addLog("SYSTEM", "EVALUATION", `Flagged for manual review: ${bidder.review_reason}`, bidder.id);
+        } else {
+            await addLog("SYSTEM", "EVALUATION", `Bidder Eligible (Turnover verified: ₹${((bidder.turnover || 0)/10000000).toFixed(1)}cr)`, bidder.id);
+        }
+    }
+    
+    await addLog("SYSTEM", "FRAUD_DETECTION", "Relationship alert: Director Rajesh Kumar linked to Bidders 2, 5");
+    await addLog("SYSTEM", "FRAUD_DETECTION", "Collusion risk score calculated as 79 for Bidders 2, 5");
+  };
+
+  const handleResolveManualReview = async (bidderId: string, resolution: 'eligible' | 'ineligible', value: number) => {
     setData((prev: any) => {
       const updatedBidders = prev.tender.bidders.map((b: Bidder) => {
         if (b.id === bidderId) {
-          return { 
-            ...b, 
-            status: resolution, 
-            turnover: value,
-            review_reason: undefined,
-            flags: resolution === 'ineligible' ? ['Turnover verified as ₹4.8cr (below threshold)'] : []
-          };
+          return { ...b, status: resolution, turnover: value, review_reason: undefined };
         }
         return b;
       });
-
-      const eligibleCount = updatedBidders.filter((b: any) => b.status === 'eligible').length;
-      const ineligibleCount = updatedBidders.filter((b: any) => b.status === 'ineligible').length;
-      const reviewCount = updatedBidders.filter((b: any) => b.status === 'manual_review').length;
-
-      return {
-        ...prev,
-        tender: { bidders: updatedBidders },
-        summary: {
-          ...prev.summary,
-          eligible: eligibleCount,
-          ineligible: ineligibleCount,
-          manual_review: reviewCount
-        }
-      };
+      return { ...prev, tender: { bidders: updatedBidders } };
     });
 
-    setAuditLog(prev => [
-      { 
-        id: Math.random().toString(), 
-        timestamp: new Date().toLocaleTimeString(), 
-        type: 'officer', 
-        action: 'Manual Resolution', 
-        details: `Officer resolved ${bidderId} as ${resolution.toUpperCase()} (Value interpreted as ₹${(value/10000000).toFixed(1)}cr)` 
-      },
-      ...prev
-    ]);
+    await addLog("OFFICER", "MANUAL_REVIEW", `Officer authorized ${bidderId} as ${resolution.toUpperCase()} (Value: ₹${(value/10000000).toFixed(1)}cr)`, bidderId);
   };
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'eligible': return 'bg-emerald-100 text-emerald-900 border-emerald-300 font-semibold';
-      case 'ineligible': return 'bg-rose-100 text-rose-900 border-rose-300 font-semibold';
-      case 'manual_review': return 'bg-amber-100 text-amber-900 border-amber-300 font-semibold';
-      default: return 'bg-gray-100 text-gray-900 border-gray-300';
-    }
+  const handleExportPDF = async () => {
+    await auditLog.current.exportToPDF(demoTender.id);
   };
 
-  const getRiskBadge = (risk?: number) => {
-    if (!risk) return <span className="text-gray-400 text-sm">—</span>;
-    if (risk >= 70) return <span className="px-2 py-1 bg-rose-600 text-white rounded text-xs font-bold">RISK {risk}</span>;
-    if (risk >= 40) return <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-bold">RISK {risk}</span>;
-    return <span className="px-2 py-1 bg-emerald-500 text-white rounded text-xs font-bold">RISK {risk}</span>;
+  const handleTamperTest = async () => {
+    auditLog.current.tamper(2, "SYSTEM OVERRIDE: Modified eligibility status (ILLEGAL)");
+    setAuditEntries(auditLog.current.getEntries());
+    setIsIntegrityValid(await auditLog.current.verifyIntegrity());
   };
 
-  if (view === 'launch') {
-    return <DemoLauncher onStart={() => setView('results')} />;
-  }
+  const handleReset = () => {
+    auditLog.current = new AuditLog();
+    setAuditEntries([]);
+    setIsIntegrityValid(true);
+    setView('launch');
+  };
 
+  if (view === 'launch') return <DemoLauncher onStart={handleStartDemo} />;
+  
   if (!data) return null;
 
-  const { tender, summary, detections } = data;
+  const { tender, detections } = data;
+  const bidders = tender.bidders;
+  const eligible = bidders.filter((b: any) => b.status === 'eligible').length;
+  const ineligible = bidders.filter((b: any) => b.status === 'ineligible').length;
+  const manual = bidders.filter((b: any) => b.status === 'manual_review').length;
+
+  if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-[#faf9f6]" suppressHydrationWarning>
+      {view === 'approval' && <CriteriaApproval onApprove={handleApproveRegistry} />}
+
       {/* Header */}
-      <header className="bg-slate-900 text-white p-6 sticky top-0 z-50 shadow-xl">
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
-          <Shield className="w-10 h-10 text-blue-400" />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">BidShield</h1>
-            <p className="text-slate-400 text-sm font-medium">Government Procurement Fraud Detection</p>
+      <header className="bg-[#1a3a5c] text-white h-16 flex items-center px-6 sticky top-0 z-50" suppressHydrationWarning>
+        <div className="flex items-center gap-4 border-r border-white/10 pr-6 mr-6 h-10">
+          <div className="text-[10px] leading-tight font-black uppercase tracking-tighter">
+            भारत सरकार <br /> GOVT OF INDIA
           </div>
-          <div className="ml-auto flex items-center gap-4">
-            <button 
-              onClick={() => setView('launch')}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
-            >
-              <History className="w-4 h-4" /> Reset Demo
-            </button>
-            <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-sm ${
-              summary.risk_level === 'HIGH' ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'
-            }`}>
-              {summary.risk_level} RISK
-            </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Shield className="w-5 h-5 text-[#b8860b]" />
+          <h1 className="text-base font-medium tracking-tight">BidShield — Procurement Integrity System</h1>
+        </div>
+        <div className="ml-auto flex items-center gap-6">
+          <div className="flex items-center gap-2 text-xs font-bold text-white/70">
+            <Users className="w-4 h-4" /> Officer: Ansh Adit
           </div>
+          <button 
+            onClick={handleReset}
+            className="text-[11px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 hover:bg-white/20 transition-all"
+          >
+            Reset
+          </button>
         </div>
       </header>
+      
+      {/* Gold Separator */}
+      <div className="h-[2px] bg-[#b8860b]"></div>
+      
+      {/* Breadcrumb Bar */}
+      <div className="bg-[#f3f4f6] px-6 py-2 border-b border-[#d1d5db] flex items-center gap-2 text-[11px] font-bold text-[#4b5563] uppercase tracking-widest">
+        Home <ChevronRight className="w-3 h-3" /> Tenders <ChevronRight className="w-3 h-3" /> {demoTender.id} <ChevronRight className="w-3 h-3 text-[#1a3a5c]" /> Evaluation Matrix
+      </div>
 
-      <main className="max-w-7xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <main className="max-w-7xl mx-auto p-8 space-y-8 animate-in fade-in duration-500">
         
-        {/* Tender Context */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-blue-600 font-bold text-xs uppercase tracking-widest mb-1">
-              <FileText className="w-4 h-4" /> Active Tender
+        {/* Official Status Bar */}
+        <div className="bg-white border border-[#d1d5db] flex flex-col md:flex-row shadow-sm">
+          <div className="p-5 border-r border-[#d1d5db] flex-1">
+            <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-1">Active Tender File</div>
+            <div className="text-xl font-bold text-[#1a3a5c]">{demoTender.title}</div>
+            <div className="text-xs font-bold text-[#4b5563] mt-1">{demoTender.id} | {demoTender.department}</div>
+          </div>
+          <div className="flex bg-[#f9fafb]">
+            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
+               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Eligible</div>
+               <div className="text-2xl font-black text-[#1e5631]">{eligible}</div>
             </div>
-            <h2 className="text-2xl font-black text-slate-900">{demoTender.title}</h2>
-            <p className="text-slate-500 font-medium">{demoTender.department} • {demoTender.id}</p>
-          </div>
-          <div className="text-right">
-             <div className="text-xs font-bold text-slate-400 uppercase mb-1">Criteria Extracted</div>
-             <div className="flex gap-1 justify-end">
-               {demoTender.criteria.map(c => (
-                 <div key={c.id} className="w-2 h-2 rounded-full bg-blue-500" title={c.name}></div>
-               ))}
-             </div>
+            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
+               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Ineligible</div>
+               <div className="text-2xl font-black text-[#8b0000]">{ineligible}</div>
+            </div>
+            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
+               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Review</div>
+               <div className="text-2xl font-black text-[#92400e]">{manual}</div>
+            </div>
+            <div className="px-8 py-5 flex flex-col items-center justify-center border-l-[3px] border-l-[#b8860b]">
+               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Flags</div>
+               <div className="text-2xl font-black text-[#1a3a5c]">2</div>
+            </div>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-5 gap-4">
-          <SummaryCard icon={<Users className="w-5 h-5"/>} label="Total Bidders" value={summary.total_bidders} color="blue" />
-          <SummaryCard icon={<CheckCircle className="w-5 h-5"/>} label="Eligible" value={summary.eligible} color="green" />
-          <SummaryCard icon={<AlertTriangle className="w-5 h-5"/>} label="Ineligible" value={summary.ineligible} color="red" />
-          <SummaryCard icon={<Clock className="w-5 h-5"/>} label="Manual Review" value={summary.manual_review} color="yellow" />
-          <SummaryCard icon={<Activity className="w-5 h-5"/>} label="Collusion Flags" value={summary.collusion_flags} color="purple" />
-        </div>
+        <ManualReviewQueue bidders={bidders} onResolve={handleResolveManualReview} />
 
-        {/* Manual Review Queue */}
-        <ManualReviewQueue bidders={tender.bidders} onResolve={handleResolveManualReview} />
-
-        {/* Bidders Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-5 border-b border-slate-200 flex items-center gap-3">
-            <FileText className="w-5 h-5 text-slate-600" />
-            <h2 className="text-lg font-bold text-gray-900">Bidder Evaluation Results</h2>
+        {/* Bidder Matrix Table */}
+        <div className="bg-white border border-[#d1d5db] shadow-sm overflow-hidden">
+          <div className="bg-[#f3f4f6] px-5 py-4 border-b border-[#d1d5db] flex items-center justify-between">
+            <h2 className="text-[14px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
+              <Terminal className="w-4 h-4" /> Bidder Eligibility Matrix
+            </h2>
+            <div className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest">
+              Officer Authorized: {mounted ? new Date().toLocaleDateString() : '—'}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-5 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">ID</th>
-                  <th className="px-5 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">Company Name</th>
-                  <th className="px-5 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="px-5 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">Turnover</th>
-                  <th className="px-5 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">OCR Confidence</th>
-                  <th className="px-5 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">Risk Score</th>
-                  <th className="px-5 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">Details</th>
+              <thead>
+                <tr className="bg-white border-b border-[#d1d5db]">
+                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">ID</th>
+                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Bidder Entity</th>
+                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Evaluation Status</th>
+                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Turnover (₹)</th>
+                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">OCR Conf.</th>
+                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Risk Index</th>
+                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Decision Logs</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tender.bidders.map((bidder: Bidder) => (
-                  <tr key={bidder.id} className={`${bidder.collusion_risk ? 'bg-rose-50/30' : 'hover:bg-slate-50'} transition-colors`}>
-                    <td className="px-5 py-4 font-mono text-xs font-bold text-slate-500">{bidder.id}</td>
-                    <td className="px-5 py-4 font-bold text-slate-900">{bidder.name}</td>
+              <tbody className="divide-y divide-gray-100">
+                {bidders.map((bidder: Bidder, idx: number) => (
+                  <tr key={bidder.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-[#faf9f6]'} hover:bg-blue-50/30 transition-colors`}>
+                    <td className="px-5 py-4 font-mono text-[11px] font-bold text-[#6b7280]">{bidder.id}</td>
+                    <td className="px-5 py-4 font-bold text-slate-900 text-sm">{bidder.name}</td>
                     <td className="px-5 py-4">
-                      <span className={`px-3 py-1 rounded-lg text-[10px] border tracking-wider ${getStatusStyle(bidder.status)}`}>
-                        {bidder.status.replace('_', ' ').toUpperCase()}
+                      <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
+                        bidder.status === 'eligible' ? 'bg-[#1e5631] text-white' : 
+                        bidder.status === 'ineligible' ? 'bg-[#8b0000] text-white' : 'bg-[#92400e] text-white'
+                      }`}>
+                        {bidder.status}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-sm text-slate-700 font-bold">
-                      {bidder.turnover ? `₹${(bidder.turnover / 10000000).toFixed(1)}cr` : <span className="text-slate-300">—</span>}
+                    <td className="px-5 py-4 text-[13px] font-bold text-[#1a3a5c]">
+                      {bidder.turnover ? `₹${(bidder.turnover / 10000000).toFixed(2)}cr` : '—'}
+                    </td>
+                    <td className="px-5 py-4 font-mono text-[11px] font-bold text-slate-500">
+                        {(bidder.ocr_confidence * 100).toFixed(0)}%
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-1000 ${
-                              bidder.ocr_confidence > 0.9 ? 'bg-emerald-500' : 
-                              bidder.ocr_confidence > 0.7 ? 'bg-amber-500' : 'bg-rose-500'
-                            }`}
-                            style={{ width: `${bidder.ocr_confidence * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-500">{(bidder.ocr_confidence * 100).toFixed(0)}%</span>
-                      </div>
+                        {(bidder.collusion_risk || 0) >= 40 ? (
+                           <span className="bg-[#8b0000] text-white px-2 py-0.5 text-[9px] font-black uppercase">RISK {bidder.collusion_risk}</span>
+                        ) : '—'}
                     </td>
-                    <td className="px-5 py-4">{getRiskBadge(bidder.collusion_risk)}</td>
-                    <td className="px-5 py-4 text-[11px] text-slate-600 font-medium max-w-xs leading-tight">
-                      {bidder.rejection_reason || bidder.review_reason || bidder.flags?.join(', ') || <span className="text-slate-300">—</span>}
+                    <td className="px-5 py-4 text-[11px] text-slate-500 font-medium leading-relaxed italic">
+                      {bidder.rejection_reason || bidder.review_reason || bidder.flags?.join(', ') || 'System authorized'}
                     </td>
                   </tr>
                 ))}
@@ -239,102 +238,83 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Visualizations Grid */}
+        {/* Evaluation Visualizations */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Fraud Network */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-[600px] flex flex-col">
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Activity className="w-5 h-5 text-indigo-600" />
-                <h2 className="text-lg font-bold text-gray-900">Fraud Network Visualization</h2>
-              </div>
-              <div className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-indigo-100">
-                Neo4j Graph
-              </div>
+          <div className="bg-white border border-[#d1d5db] shadow-sm h-[500px] flex flex-col">
+            <div className="bg-[#f3f4f6] px-5 py-3 border-b border-[#d1d5db] flex items-center justify-between">
+               <h3 className="text-[13px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
+                 <Activity className="w-4 h-4" /> Relationship Network Graph
+               </h3>
             </div>
-            <div className="flex-1 bg-white relative">
+            <div className="flex-1 bg-white">
               <FraudNetworkGraph />
-            </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-wrap gap-x-6 gap-y-2 justify-center">
-              <LegendItem color="bg-[#3b82f6]" label="Bidder" />
-              <LegendItem color="bg-[#ef4444]" label="Director" rounded="rounded-full" />
-              <LegendItem color="bg-[#10b981]" label="Address" />
-              <LegendItem color="bg-[#f59e0b]" label="Bank" />
-              <LegendItem color="bg-[#8b5cf6]" label="Phone" />
             </div>
           </div>
 
-          {/* Benford's Law */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-bold text-gray-900">Benford's Law Analysis</h2>
-              </div>
-              <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-blue-100">
-                Statistical Deviations
-              </div>
+          <div className="bg-white border border-[#d1d5db] shadow-sm flex flex-col">
+            <div className="bg-[#f3f4f6] px-5 py-3 border-b border-[#d1d5db] flex items-center justify-between">
+               <h3 className="text-[13px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
+                 <BarChart3 className="w-4 h-4" /> Statistical Distribution (Benford)
+               </h3>
             </div>
-            <div className="p-6 flex-1">
+            <div className="p-8 flex-1">
               <BenfordChart data={detections.benfords_law} />
-              <div className="mt-6 flex items-start gap-3 text-xs text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div className="p-2 bg-white rounded-lg shadow-sm shrink-0">
-                  <Activity className="w-4 h-4 text-blue-500" />
-                </div>
-                <p className="leading-relaxed">
-                  <strong>Why this matters?</strong> Humans are poor at generating truly random numbers. Significant deviations in the first-digit distribution (Benford's Law) provide strong mathematical evidence of artificial bid pricing.
-                </p>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Audit Trail Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <button 
-            onClick={() => setShowAudit(!showAudit)}
-            className="w-full p-5 flex items-center justify-between hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-3 text-slate-700">
-              <History className="w-5 h-5" />
-              <h2 className="text-lg font-bold">System & Officer Audit Trail</h2>
-              <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-[10px] font-black">{auditLog.length} ENTRIES</span>
+        {/* Compliance Audit Section */}
+        <div className={`bg-white border border-[#d1d5db] shadow-md transition-all duration-300 ${!isIntegrityValid ? 'border-l-[4px] border-l-[#8b0000]' : ''}`}>
+          <div className="p-5 flex items-center justify-between bg-[#f3f4f6] border-b border-[#d1d5db]">
+            <div className="flex items-center gap-4">
+              <div className={`p-2 ${!isIntegrityValid ? 'bg-[#8b0000] text-white' : 'bg-[#1a3a5c] text-white'}`}>
+                {isIntegrityValid ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+              </div>
+              <div>
+                <h2 className="text-[13px] font-black text-[#1a3a5c] uppercase tracking-wider">Audit Trail & Compliance Registry</h2>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${
+                    isIntegrityValid ? 'text-[#1e5631]' : 'text-[#8b0000]'
+                  }`}>
+                    {isIntegrityValid ? '✓ Integrity Verified' : '✗ Security Breach Detected'}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400">| {auditEntries.length} Operations Hashed</span>
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <button 
-                onClick={(e) => { e.stopPropagation(); alert("PDF generated with SHA-256: 8f92b...c3a1"); }}
-                className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-emerald-500 transition-colors"
+                onClick={handleExportPDF}
+                className="px-4 py-2 bg-[#1a3a5c] hover:bg-[#0f2440] text-white text-[11px] font-black uppercase tracking-widest transition-all"
               >
-                <Download className="w-3.5 h-3.5" /> Export Signed Report
+                Download Signed Audit Log
               </button>
-              {showAudit ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              <button onClick={() => setShowAudit(!showAudit)} className="text-slate-400">
+                {showAudit ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
             </div>
-          </button>
+          </div>
           
           {showAudit && (
-            <div className="border-t border-slate-100 overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase">Timestamp</th>
-                    <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase">Origin</th>
-                    <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase">Action</th>
-                    <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase">Detailed Log</th>
+                <thead>
+                  <tr className="bg-[#faf9f6] border-b border-[#d1d5db]">
+                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Entry ID</th>
+                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Actor</th>
+                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Action</th>
+                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Description</th>
+                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Chain Hash</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {auditLog.map((entry) => (
+                <tbody className="divide-y divide-slate-100 font-mono text-[10px]">
+                  {auditEntries.slice().reverse().map((entry) => (
                     <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 text-xs font-mono text-slate-400">{entry.timestamp}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
-                          entry.type === 'system' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'
-                        }`}>
-                          {entry.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-xs font-bold text-slate-700">{entry.action}</td>
-                      <td className="px-6 py-4 text-xs text-slate-500 font-medium">{entry.details}</td>
+                      <td className="px-6 py-3 font-bold text-slate-400">{entry.id.padStart(4, '0')}</td>
+                      <td className="px-6 py-3 font-bold text-[#1a3a5c]">{entry.actor}</td>
+                      <td className="px-6 py-3 font-bold text-slate-700">{entry.action}</td>
+                      <td className="px-6 py-3 text-slate-500 uppercase">{entry.details}</td>
+                      <td className="px-6 py-3 text-slate-400">{entry.currentHash.substring(0, 16)}...</td>
                     </tr>
                   ))}
                 </tbody>
@@ -342,36 +322,16 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        <div className="flex justify-center pt-8 border-t border-gray-200">
+           <button 
+             onClick={handleTamperTest}
+             className="text-[9px] font-black text-[#d1d5db] hover:text-[#8b0000] uppercase tracking-[0.3em] transition-colors"
+           >
+             Trigger System Integrity Test (Tamper Simulation)
+           </button>
+        </div>
       </main>
-    </div>
-  );
-}
-
-function LegendItem({ color, label, rounded = 'rounded-md' }: { color: string, label: string, rounded?: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className={`w-2.5 h-2.5 ${color} ${rounded} border border-white shadow-sm`}></div>
-      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
-    </div>
-  );
-}
-
-function SummaryCard({ icon, label, value, color }: { icon: React.ReactNode, label: string, value: number, color: string }) {
-  const colors: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-800 border-blue-100',
-    green: 'bg-emerald-50 text-emerald-800 border-emerald-100',
-    red: 'bg-rose-50 text-rose-800 border-rose-100',
-    yellow: 'bg-amber-50 text-amber-800 border-amber-100',
-    purple: 'bg-purple-50 text-purple-800 border-purple-100',
-  };
-
-  return (
-    <div className={`p-5 rounded-2xl border shadow-sm transition-all hover:shadow-md ${colors[color]}`}>
-      <div className="flex items-center gap-2 mb-3 opacity-70">
-        <div className="p-1.5 bg-white/50 rounded-lg">{icon}</div>
-        <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
-      </div>
-      <div className="text-4xl font-black tracking-tight">{value}</div>
     </div>
   );
 }

@@ -1,135 +1,105 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
-  Node,
+  addEdge,
+  Connection,
   Edge,
+  Node,
+  Background,
+  Controls,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { getFraudNetwork } from '../../lib/api';
 
-const NODE_WIDTH = 140;
-
-const truncate = (str: string, n: number) => {
-  return str.length > n ? str.substr(0, n - 1) + '...' : str;
+const GOV_COLORS = {
+  BIDDER: '#1a3a5c',
+  DIRECTOR: '#8b0000',
+  ADDRESS: '#1e5631',
+  BANKACCOUNT: '#b8860b',
+  PHONE: '#92400e'
 };
 
 export default function FraudNetworkGraph() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [loading, setLoading] = useState(true);
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await getFraudNetwork();
-        const { nodes: rawNodes, edges: rawEdges } = response.data;
+        const { data } = await getFraudNetwork();
+        const rawNodes = data.nodes;
+        const rawEdges = data.edges;
 
-        const mappedNodes: Node[] = rawNodes.map((node: any) => {
-          const type = node.type;
-          let backgroundColor = '#3b82f6';
-          let borderRadius = '10px';
+        const mappedNodes: Node[] = rawNodes.map((node: any, index: number) => {
+          const type = node.type.toUpperCase();
+          const backgroundColor = GOV_COLORS[type as keyof typeof GOV_COLORS] || '#4b5563';
+          
           let label = '';
-
-          switch (type) {
-            case 'Bidder':
-              backgroundColor = '#3b82f6';
-              label = node.props.name;
-              break;
-            case 'Director':
-              backgroundColor = '#ef4444';
-              borderRadius = '50%';
-              label = node.props.name;
-              break;
-            case 'Address':
-              backgroundColor = '#10b981';
-              label = truncate(node.props.full || '', 20);
-              break;
-            case 'BankAccount':
-              backgroundColor = '#f59e0b';
-              label = node.props.number;
-              break;
-            case 'Phone':
-              backgroundColor = '#8b5cf6';
-              label = node.props.number;
-              break;
-          }
+          if (type === 'BIDDER' || type === 'DIRECTOR') label = node.props.name;
+          else if (type === 'ADDRESS') label = node.props.full.substring(0, 15) + '...';
+          else if (type === 'BANKACCOUNT') label = node.props.number;
+          else if (type === 'PHONE') label = node.props.number;
 
           return {
             id: node.id,
-            data: { label },
-            position: { x: Math.random() * 800, y: Math.random() * 400 },
+            position: { x: Math.random() * 600, y: Math.random() * 400 },
+            data: { label: label },
             style: {
-              backgroundColor,
+              background: backgroundColor,
               color: '#fff',
-              borderRadius,
-              border: '2px solid #fff',
-              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-              width: NODE_WIDTH,
-              padding: '8px 12px',
-              fontSize: '12px',
-              fontWeight: '600',
+              fontSize: '10px',
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              border: 'none',
+              width: 120,
+              padding: '10px',
               textAlign: 'center',
+              borderRadius: '0px', // STRICT SHARP CORNERS
             },
           };
         });
 
         const mappedEdges: Edge[] = rawEdges.map((edge: any, index: number) => ({
-          id: `${edge.source}-${edge.target}-${index}`,
+          id: `e${index}-${edge.source}-${edge.target}`,
           source: edge.source,
           target: edge.target,
-          type: 'smoothstep',
+          label: edge.type.replace('_', ' '),
+          labelStyle: { fontSize: '8px', fill: '#6b7280', fontWeight: 'bold' },
           animated: true,
-          label: edge.type,
-          style: { stroke: '#6366f1', strokeWidth: 2 },
-          labelStyle: { fill: '#111827', fontWeight: 700, fontSize: 10 },
-          labelBgStyle: { fill: '#ffffff', fillOpacity: 0.8 },
-          labelBgPadding: [4, 2],
-          labelBgBorderRadius: 4,
+          style: { stroke: '#94a3b8', strokeWidth: 1.5 },
         }));
 
         setNodes(mappedNodes);
         setEdges(mappedEdges);
       } catch (error) {
         console.error('Failed to fetch fraud network:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchData();
   }, [setNodes, setEdges]);
 
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-500 font-medium">
-        Loading network graph...
-      </div>
-    );
-  }
-
-  const nodeColor = (node: Node) => {
-    return (node.style?.backgroundColor as string) || '#3b82f6';
-  };
-
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full bg-white">
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
         fitView
       >
-        <Background color="#e5e7eb" gap={16} />
-        <Controls />
-        <MiniMap nodeColor={nodeColor} nodeStrokeWidth={3} zoomable pannable />
+        <Background color="#f1f5f9" gap={20} />
+        <Controls showInteractive={false} />
       </ReactFlow>
     </div>
   );
