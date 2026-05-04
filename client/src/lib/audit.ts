@@ -129,7 +129,7 @@ export class AuditLog {
       startY: 60,
       head: [['#', 'Time', 'Actor', 'Action', 'Bidder', 'Details', 'Hash']],
       body: tableData,
-      headStyles: { fillStyle: 'f', fillColor: [15, 23, 42], textColor: 255 },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255 },
       styles: { fontSize: 8 },
       columnStyles: {
         5: { cellWidth: 60 }, // Details column width
