@@ -22,7 +22,7 @@ export default function RootLayout({
       <body 
         className="font-sans antialiased bg-white text-slate-900" 
         style={{ 
-          // @ts-expect-error
+          // @ts-expect-error: Custom CSS variables for font families are not recognized by standard React style types
           '--font-inter': 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif',
           '--font-source-serif': '"Source Serif 4", Georgia, "Times New Roman", serif'
         }}
