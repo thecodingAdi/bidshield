@@ -1,337 +1,551 @@
-'use client';
+import Link from "next/link"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import {
+  Shield,
+  FileSearch,
+  Network,
+  CheckCircle,
+  Lock,
+  Building2,
+  ArrowRight,
+  FileText,
+  GitBranch,
+  Activity,
+  ChevronRight,
+  Users,
+  AlertTriangle,
+  FileX,
+  DollarSign,
+  LayoutDashboard,
+  Settings,
+  Bell,
+  Search
+} from "lucide-react"
 
-import { useEffect, useState, useRef } from 'react';
-import { 
-  Shield, AlertTriangle, CheckCircle, Clock, Users, FileText, 
-  Activity, BarChart3, ChevronDown, ChevronUp, History, Download, 
-  Lock, Unlock, AlertCircle, Terminal, Search, ChevronRight
-} from 'lucide-react';
-import FraudNetworkGraph from '../components/FraudNetworkGraph';
-import BenfordChart from '../components/BenfordChart';
-import DemoLauncher from '../components/DemoLauncher';
-import ManualReviewQueue from '../components/ManualReviewQueue';
-import CriteriaApproval from '../components/CriteriaApproval';
-import { demoBidders, demoTender, Bidder } from '../lib/demoData';
-import { getFullAnalysis } from '../../lib/api';
-import { AuditLog, AuditEntry } from '../lib/audit';
-
-export default function Dashboard() {
-  const [data, setData] = useState<any>(null);
-  const [view, setView] = useState<'launch' | 'approval' | 'results'>('launch');
-  const [showAudit, setShowAudit] = useState(false);
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
-  const [isIntegrityValid, setIsIntegrityValid] = useState(true);
-  const [mounted, setMounted] = useState(false);
-  
-  const auditLog = useRef(new AuditLog());
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const addLog = async (actor: "SYSTEM" | "OFFICER", action: any, details: string, bidderId?: string) => {
-    await auditLog.current.addEntry({ actor, action, details, bidderId });
-    setAuditEntries(auditLog.current.getEntries());
-    setIsIntegrityValid(await auditLog.current.verifyIntegrity());
-  };
-
-  useEffect(() => {
-    const fetchBaseData = async () => {
-      try {
-        const res = await getFullAnalysis();
-        setData({
-          ...res.data,
-          tender: { bidders: demoBidders }
-        });
-      } catch (e) { console.error(e); }
-    };
-    fetchBaseData();
-  }, []);
-
-  const handleStartDemo = async () => {
-    setView('approval');
-    await addLog("SYSTEM", "EVALUATION", `Initiated demo evaluation for Tender ${demoTender.id}`);
-  };
-
-  const handleApproveRegistry = async () => {
-    setView('results');
-    await addLog("OFFICER", "CRITERIA_REGISTRY_APPROVAL", `Officer authorized evaluation registry (${demoTender.criteria.length} criteria)`);
-    
-    for (const bidder of demoBidders) {
-        if (bidder.status === 'ineligible') {
-            await addLog("SYSTEM", "EVALUATION", `Bidder Ineligible: ${bidder.rejection_reason}`, bidder.id);
-        } else if (bidder.status === 'manual_review') {
-            await addLog("SYSTEM", "EVALUATION", `Flagged for manual review: ${bidder.review_reason}`, bidder.id);
-        } else {
-            await addLog("SYSTEM", "EVALUATION", `Bidder Eligible (Turnover verified: ₹${((bidder.turnover || 0)/10000000).toFixed(1)}cr)`, bidder.id);
-        }
-    }
-    
-    await addLog("SYSTEM", "FRAUD_DETECTION", "Relationship alert: Director Rajesh Kumar linked to Bidders 2, 5");
-    await addLog("SYSTEM", "FRAUD_DETECTION", "Collusion risk score calculated as 79 for Bidders 2, 5");
-  };
-
-  const handleResolveManualReview = async (bidderId: string, resolution: 'eligible' | 'ineligible', value: number) => {
-    setData((prev: any) => {
-      const updatedBidders = prev.tender.bidders.map((b: Bidder) => {
-        if (b.id === bidderId) {
-          return { ...b, status: resolution, turnover: value, review_reason: undefined };
-        }
-        return b;
-      });
-      return { ...prev, tender: { bidders: updatedBidders } };
-    });
-
-    await addLog("OFFICER", "MANUAL_REVIEW", `Officer authorized ${bidderId} as ${resolution.toUpperCase()} (Value: ₹${(value/10000000).toFixed(1)}cr)`, bidderId);
-  };
-
-  const handleExportPDF = async () => {
-    await auditLog.current.exportToPDF(demoTender.id);
-  };
-
-  const handleTamperTest = async () => {
-    auditLog.current.tamper(2, "SYSTEM OVERRIDE: Modified eligibility status (ILLEGAL)");
-    setAuditEntries(auditLog.current.getEntries());
-    setIsIntegrityValid(await auditLog.current.verifyIntegrity());
-  };
-
-  const handleReset = () => {
-    auditLog.current = new AuditLog();
-    setAuditEntries([]);
-    setIsIntegrityValid(true);
-    setView('launch');
-  };
-
-  if (view === 'launch') return <DemoLauncher onStart={handleStartDemo} />;
-  
-  if (!data) return null;
-
-  const { tender, detections } = data;
-  const bidders = tender.bidders;
-  const eligible = bidders.filter((b: any) => b.status === 'eligible').length;
-  const ineligible = bidders.filter((b: any) => b.status === 'ineligible').length;
-  const manual = bidders.filter((b: any) => b.status === 'manual_review').length;
-
-  if (!mounted) return null;
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#faf9f6]" suppressHydrationWarning>
-      {view === 'approval' && <CriteriaApproval onApprove={handleApproveRegistry} />}
-
-      {/* Header */}
-      <header className="bg-[#1a3a5c] text-white h-16 flex items-center px-6 sticky top-0 z-50" suppressHydrationWarning>
-        <div className="flex items-center gap-4 border-r border-white/10 pr-6 mr-6 h-10">
-          <div className="text-[10px] leading-tight font-black uppercase tracking-tighter">
-            भारत सरकार <br /> GOVT OF INDIA
+    <div className="min-h-screen bg-white">
+      {/* Floating Centered Navbar - Terra Style */}
+      <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-4xl">
+        <div className="bg-slate-900/80 backdrop-blur-md rounded-full px-6 py-3 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="h-6 w-6 text-white" />
+              <span className="text-lg font-semibold text-white">BidShield</span>
+            </div>
+            <div className="hidden md:flex items-center gap-8">
+              <Link href="#features" className="text-sm text-white/70 hover:text-white transition-colors">
+                Features
+              </Link>
+              <Link href="#demo" className="text-sm text-white/70 hover:text-white transition-colors">
+                Demo
+              </Link>
+              <Link href="#security" className="text-sm text-white/70 hover:text-white transition-colors">
+                Security
+              </Link>
+            </div>
+            <Link href="/evaluation">
+              <Button size="sm" className="bg-[#002B5B] hover:bg-[#001E3C] text-white rounded-full px-5 transition-all duration-200">
+                Access Portal
+              </Button>
+            </Link>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#b8860b]" />
-          <h1 className="text-base font-medium tracking-tight">BidShield — Procurement Integrity System</h1>
-        </div>
-        <div className="ml-auto flex items-center gap-6">
-          <div className="flex items-center gap-2 text-xs font-bold text-white/70">
-            <Users className="w-4 h-4" /> Officer: Ansh Adit
-          </div>
-          <button 
-            onClick={handleReset}
-            className="text-[11px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 hover:bg-white/20 transition-all"
-          >
-            Reset
-          </button>
-        </div>
-      </header>
-      
-      {/* Gold Separator */}
-      <div className="h-[2px] bg-[#b8860b]"></div>
-      
-      {/* Breadcrumb Bar */}
-      <div className="bg-[#f3f4f6] px-6 py-2 border-b border-[#d1d5db] flex items-center gap-2 text-[11px] font-bold text-[#4b5563] uppercase tracking-widest">
-        Home <ChevronRight className="w-3 h-3" /> Tenders <ChevronRight className="w-3 h-3" /> {demoTender.id} <ChevronRight className="w-3 h-3 text-[#1a3a5c]" /> Evaluation Matrix
-      </div>
+      </nav>
 
-      <main className="max-w-7xl mx-auto p-8 space-y-8 animate-in fade-in duration-500">
-        
-        {/* Official Status Bar */}
-        <div className="bg-white border border-[#d1d5db] flex flex-col md:flex-row shadow-sm">
-          <div className="p-5 border-r border-[#d1d5db] flex-1">
-            <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-1">Active Tender File</div>
-            <div className="text-xl font-bold text-[#1a3a5c]">{demoTender.title}</div>
-            <div className="text-xs font-bold text-[#4b5563] mt-1">{demoTender.id} | {demoTender.department}</div>
-          </div>
-          <div className="flex bg-[#f9fafb]">
-            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
-               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Eligible</div>
-               <div className="text-2xl font-black text-[#1e5631]">{eligible}</div>
-            </div>
-            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
-               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Ineligible</div>
-               <div className="text-2xl font-black text-[#8b0000]">{ineligible}</div>
-            </div>
-            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
-               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Review</div>
-               <div className="text-2xl font-black text-[#92400e]">{manual}</div>
-            </div>
-            <div className="px-8 py-5 flex flex-col items-center justify-center border-l-[3px] border-l-[#b8860b]">
-               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Flags</div>
-               <div className="text-2xl font-black text-[#1a3a5c]">2</div>
-            </div>
-          </div>
+      <section className="relative min-h-[100vh] overflow-hidden">
+        <div className="absolute inset-0">
+          <Image
+            src="/hero-bg.jpg"
+            alt="Modern data center"
+            fill
+            className="object-cover"
+            priority
+          />
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-black/40" />
         </div>
 
-        <ManualReviewQueue bidders={bidders} onResolve={handleResolveManualReview} />
+        {/* Hero Content */}
+        <div className="relative z-10 pt-36 pb-72">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
 
-        {/* Bidder Matrix Table */}
-        <div className="bg-white border border-[#d1d5db] shadow-sm overflow-hidden">
-          <div className="bg-[#f3f4f6] px-5 py-4 border-b border-[#d1d5db] flex items-center justify-between">
-            <h2 className="text-[14px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
-              <Terminal className="w-4 h-4" /> Bidder Eligibility Matrix
-            </h2>
-            <div className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest">
-              Officer Authorized: {mounted ? new Date().toLocaleDateString() : '—'}
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-white border-b border-[#d1d5db]">
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">ID</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Bidder Entity</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Evaluation Status</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Turnover (₹)</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">OCR Conf.</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Risk Index</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Decision Logs</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {bidders.map((bidder: Bidder, idx: number) => (
-                  <tr key={bidder.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-[#faf9f6]'} hover:bg-blue-50/30 transition-colors`}>
-                    <td className="px-5 py-4 font-mono text-[11px] font-bold text-[#6b7280]">{bidder.id}</td>
-                    <td className="px-5 py-4 font-bold text-slate-900 text-sm">{bidder.name}</td>
-                    <td className="px-5 py-4">
-                      <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
-                        bidder.status === 'eligible' ? 'bg-[#1e5631] text-white' : 
-                        bidder.status === 'ineligible' ? 'bg-[#8b0000] text-white' : 'bg-[#92400e] text-white'
-                      }`}>
-                        {bidder.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-[13px] font-bold text-[#1a3a5c]">
-                      {bidder.turnover ? `₹${(bidder.turnover / 10000000).toFixed(2)}cr` : '—'}
-                    </td>
-                    <td className="px-5 py-4 font-mono text-[11px] font-bold text-slate-500">
-                        {(bidder.ocr_confidence * 100).toFixed(0)}%
-                    </td>
-                    <td className="px-5 py-4">
-                        {(bidder.collusion_risk || 0) >= 40 ? (
-                           <span className="bg-[#8b0000] text-white px-2 py-0.5 text-[9px] font-black uppercase">RISK {bidder.collusion_risk}</span>
-                        ) : '—'}
-                    </td>
-                    <td className="px-5 py-4 text-[11px] text-slate-500 font-medium leading-relaxed italic">
-                      {bidder.rejection_reason || bidder.review_reason || bidder.flags?.join(', ') || 'System authorized'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+            <h1
+              className="font-serif text-6xl font-bold tracking-tight text-white sm:text-7xl lg:text-8xl text-balance"
+              style={{ textShadow: '0 4px 24px rgba(0,0,0,0.3)' }}
+            >
+              Secure Every Bid
+            </h1>
 
-        {/* Evaluation Visualizations */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white border border-[#d1d5db] shadow-sm h-[500px] flex flex-col">
-            <div className="bg-[#f3f4f6] px-5 py-3 border-b border-[#d1d5db] flex items-center justify-between">
-               <h3 className="text-[13px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
-                 <Activity className="w-4 h-4" /> Relationship Network Graph
-               </h3>
-            </div>
-            <div className="flex-1 bg-white">
-              <FraudNetworkGraph />
-            </div>
-          </div>
+            <p className="mt-8 text-xl text-white/60 leading-relaxed max-w-2xl mx-auto text-pretty">
+              AI-powered collusion detection and document evaluation for government agencies.
+            </p>
 
-          <div className="bg-white border border-[#d1d5db] shadow-sm flex flex-col">
-            <div className="bg-[#f3f4f6] px-5 py-3 border-b border-[#d1d5db] flex items-center justify-between">
-               <h3 className="text-[13px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
-                 <BarChart3 className="w-4 h-4" /> Statistical Distribution (Benford)
-               </h3>
-            </div>
-            <div className="p-8 flex-1">
-              <BenfordChart data={detections.benfords_law} />
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/evaluation">
+                <Button
+                  size="lg"
+                  className="bg-white text-[#002B5B] hover:bg-white/90 px-8 h-14 text-base transition-all duration-200 shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.4)]"
+                >
+                  Enter Evaluation Portal
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="#features">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-white/30 text-white hover:bg-white/10 h-14 text-base transition-all duration-200"
+                >
+                  Learn More
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Compliance Audit Section */}
-        <div className={`bg-white border border-[#d1d5db] shadow-md transition-all duration-300 ${!isIntegrityValid ? 'border-l-[4px] border-l-[#8b0000]' : ''}`}>
-          <div className="p-5 flex items-center justify-between bg-[#f3f4f6] border-b border-[#d1d5db]">
-            <div className="flex items-center gap-4">
-              <div className={`p-2 ${!isIntegrityValid ? 'bg-[#8b0000] text-white' : 'bg-[#1a3a5c] text-white'}`}>
-                {isIntegrityValid ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
-              </div>
-              <div>
-                <h2 className="text-[13px] font-black text-[#1a3a5c] uppercase tracking-wider">Audit Trail & Compliance Registry</h2>
-                <div className="flex items-center gap-3 mt-0.5">
-                  <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${
-                    isIntegrityValid ? 'text-[#1e5631]' : 'text-[#8b0000]'
-                  }`}>
-                    {isIntegrityValid ? '✓ Integrity Verified' : '✗ Security Breach Detected'}
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-400">| {auditEntries.length} Operations Hashed</span>
+        {/* Peek Dashboard Card - Tucked at Bottom */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 px-4 sm:px-6 lg:px-8 translate-y-1/2">
+          <div className="mx-auto max-w-6xl">
+            <Card className="border-slate-200 bg-white shadow-2xl rounded-2xl overflow-hidden">
+              <div className="flex">
+                {/* Sidebar */}
+                <div className="w-56 bg-slate-50 border-r border-slate-200 p-4 hidden md:block">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Shield className="h-6 w-6 text-[#002B5B]" />
+                    <span className="font-semibold text-slate-900">BidShield</span>
+                  </div>
+                  <nav className="space-y-1">
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#002B5B] text-white">
+                      <LayoutDashboard className="h-4 w-4" />
+                      <span className="text-sm font-medium">Dashboard</span>
+                    </div>
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm">Documents</span>
+                    </div>
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                      <Network className="h-4 w-4" />
+                      <span className="text-sm">Network</span>
+                    </div>
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                      <Activity className="h-4 w-4" />
+                      <span className="text-sm">Audit Log</span>
+                    </div>
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                      <Settings className="h-4 w-4" />
+                      <span className="text-sm">Settings</span>
+                    </div>
+                  </nav>
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 p-6">
+                  {/* Top Bar */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">Overview</h3>
+                      <p className="text-sm text-slate-500">Q4 2024 Procurement Analysis</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search tenders..."
+                          className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-600 w-48"
+                          readOnly
+                        />
+                      </div>
+                      <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
+                        <Bell className="h-4 w-4 text-slate-500" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stat Cards Grid */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                          <Users className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700">+12%</Badge>
+                      </div>
+                      <p className="text-2xl font-bold text-slate-900">2,847</p>
+                      <p className="text-sm text-slate-500">Total Bidders</p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                          <AlertTriangle className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <Badge variant="secondary" className="text-xs bg-amber-50 text-amber-700">-8%</Badge>
+                      </div>
+                      <p className="text-2xl font-bold text-slate-900">47</p>
+                      <p className="text-sm text-slate-500">Alerts Found</p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
+                          <FileX className="h-5 w-5 text-red-600" />
+                        </div>
+                        <Badge variant="secondary" className="text-xs bg-red-50 text-red-700">3 new</Badge>
+                      </div>
+                      <p className="text-2xl font-bold text-slate-900">23</p>
+                      <p className="text-sm text-slate-500">Ineligible Docs</p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                          <DollarSign className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <Badge variant="secondary" className="text-xs bg-emerald-50 text-emerald-700">Protected</Badge>
+                      </div>
+                      <p className="text-2xl font-bold text-slate-900">$4.2M</p>
+                      <p className="text-sm text-slate-500">Savings Protected</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={handleExportPDF}
-                className="px-4 py-2 bg-[#1a3a5c] hover:bg-[#0f2440] text-white text-[11px] font-black uppercase tracking-widest transition-all"
-              >
-                Download Signed Audit Log
-              </button>
-              <button onClick={() => setShowAudit(!showAudit)} className="text-slate-400">
-                {showAudit ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </button>
-            </div>
+            </Card>
           </div>
-          
-          {showAudit && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-[#faf9f6] border-b border-[#d1d5db]">
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Entry ID</th>
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Actor</th>
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Action</th>
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Description</th>
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Chain Hash</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-[10px]">
-                  {auditEntries.slice().reverse().map((entry) => (
-                    <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-3 font-bold text-slate-400">{entry.id.padStart(4, '0')}</td>
-                      <td className="px-6 py-3 font-bold text-[#1a3a5c]">{entry.actor}</td>
-                      <td className="px-6 py-3 font-bold text-slate-700">{entry.action}</td>
-                      <td className="px-6 py-3 text-slate-500 uppercase">{entry.details}</td>
-                      <td className="px-6 py-3 text-slate-400">{entry.currentHash.substring(0, 16)}...</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
 
-        <div className="flex justify-center pt-8 border-t border-gray-200">
-           <button 
-             onClick={handleTamperTest}
-             className="text-[9px] font-black text-[#d1d5db] hover:text-[#8b0000] uppercase tracking-[0.3em] transition-colors"
-           >
-             Trigger System Integrity Test (Tamper Simulation)
-           </button>
+      </section>
+
+      {/* Spacing to account for peek dashboard */}
+      <div className="h-80 md:h-72" />
+
+      {/* Bento Grid Features Section */}
+      <section id="features" className="bg-slate-50 py-24 border-y border-slate-200">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <Badge variant="secondary" className="mb-4 text-[#002B5B] bg-[#002B5B]/10">
+              Core Capabilities
+            </Badge>
+            <h2 className="font-serif text-4xl font-bold text-slate-900 text-balance">
+              Three Pillars of Protection
+            </h2>
+            <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+              Comprehensive fraud detection powered by document analysis, network intelligence, and complete audit trails
+            </p>
+          </div>
+
+          {/* Bento Grid - 3 columns */}
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {/* Card 1: Document Pillar */}
+            <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-300 group overflow-hidden">
+              <CardHeader className="pb-4">
+                <div className="h-40 rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 mb-4 flex items-center justify-center relative overflow-hidden">
+                  <div className="relative">
+                    <div className="w-20 h-28 bg-white rounded border-2 border-slate-300 shadow-sm flex flex-col items-center justify-center gap-1.5">
+                      <div className="w-12 h-1.5 bg-slate-200 rounded" />
+                      <div className="w-14 h-1.5 bg-slate-200 rounded" />
+                      <div className="w-10 h-1.5 bg-slate-200 rounded" />
+                      <div className="w-12 h-1.5 bg-slate-200 rounded" />
+                      <div className="w-8 h-1.5 bg-slate-200 rounded" />
+                    </div>
+                    <div className="absolute -right-3 top-2">
+                      <CheckCircle className="h-5 w-5 text-emerald-500 fill-emerald-50" />
+                    </div>
+                    <div className="absolute -right-2 top-10">
+                      <CheckCircle className="h-4 w-4 text-emerald-500 fill-emerald-50" />
+                    </div>
+                    <div className="absolute -right-3 bottom-4">
+                      <CheckCircle className="h-5 w-5 text-emerald-500 fill-emerald-50" />
+                    </div>
+                  </div>
+                </div>
+                <CardTitle className="text-xl text-slate-900 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-[#002B5B]" />
+                  Document Analysis
+                </CardTitle>
+                <CardDescription className="text-slate-600">
+                  Pillar 1 - Intelligent OCR Processing
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2.5 text-sm text-slate-600">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>Gemini 1.5 Pro extraction</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>Criteria compliance mapping</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>Cross-submission verification</span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Card 2: Graph Pillar */}
+            <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-300 group overflow-hidden">
+              <CardHeader className="pb-4">
+                <div className="h-40 rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 mb-4 flex items-center justify-center relative overflow-hidden">
+                  <svg viewBox="0 0 120 80" className="w-32 h-20">
+                    <line x1="30" y1="40" x2="60" y2="20" stroke="#002B5B" strokeWidth="2" opacity="0.3" />
+                    <line x1="30" y1="40" x2="60" y2="60" stroke="#002B5B" strokeWidth="2" opacity="0.3" />
+                    <line x1="60" y1="20" x2="90" y2="30" stroke="#002B5B" strokeWidth="2" opacity="0.3" />
+                    <line x1="60" y1="60" x2="90" y2="50" stroke="#002B5B" strokeWidth="2" opacity="0.3" />
+                    <line x1="60" y1="20" x2="60" y2="60" stroke="#dc2626" strokeWidth="2" strokeDasharray="4,2" />
+
+                    <circle cx="30" cy="40" r="8" fill="#002B5B" />
+                    <circle cx="60" cy="20" r="8" fill="#002B5B" />
+                    <circle cx="60" cy="60" r="8" fill="#dc2626" />
+                    <circle cx="90" cy="30" r="6" fill="#002B5B" opacity="0.7" />
+                    <circle cx="90" cy="50" r="6" fill="#002B5B" opacity="0.7" />
+                  </svg>
+                </div>
+                <CardTitle className="text-xl text-slate-900 flex items-center gap-2">
+                  <GitBranch className="h-5 w-5 text-[#002B5B]" />
+                  Network Analysis
+                </CardTitle>
+                <CardDescription className="text-slate-600">
+                  Pillar 2 - Collusion Detection Engine
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2.5 text-sm text-slate-600">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>Neo4j relationship mapping</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>Shared entity detection</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>Historical pattern analysis</span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Card 3: Audit Pillar */}
+            <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-300 group overflow-hidden">
+              <CardHeader className="pb-4">
+                <div className="h-40 rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 mb-4 p-4 overflow-hidden">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                      <div className="flex-1 h-2.5 bg-slate-200 rounded w-3/4" />
+                      <span className="text-[10px] text-slate-400">2m ago</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                      <div className="flex-1 h-2.5 bg-slate-200 rounded w-2/3" />
+                      <span className="text-[10px] text-slate-400">5m ago</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                      <div className="flex-1 h-2.5 bg-slate-200 rounded w-4/5" />
+                      <span className="text-[10px] text-slate-400">8m ago</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                      <div className="flex-1 h-2.5 bg-slate-200 rounded w-1/2" />
+                      <span className="text-[10px] text-slate-400">12m ago</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                      <div className="flex-1 h-2.5 bg-slate-200 rounded w-3/5" />
+                      <span className="text-[10px] text-slate-400">15m ago</span>
+                    </div>
+                  </div>
+                </div>
+                <CardTitle className="text-xl text-slate-900 flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-[#002B5B]" />
+                  Audit Trail
+                </CardTitle>
+                <CardDescription className="text-slate-600">
+                  Pillar 3 - Complete Transparency
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2.5 text-sm text-slate-600">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>Immutable action logging</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>User attribution tracking</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <span>Exportable compliance reports</span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* How It Works - Process Flow */}
+      <section className="bg-white py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <Badge variant="secondary" className="mb-4 text-[#002B5B] bg-[#002B5B]/10">
+              Process
+            </Badge>
+            <h2 className="font-serif text-4xl font-bold text-slate-900 text-balance">
+              From Upload to Verdict
+            </h2>
+            <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+              A streamlined four-step process that delivers actionable intelligence
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+            {[
+              { step: "01", title: "Document Upload", desc: "Scanned bid documents are securely ingested", icon: FileSearch },
+              { step: "02", title: "OCR Processing", desc: "AI extracts text and structured data fields", icon: FileText },
+              { step: "03", title: "Rule Analysis", desc: "Compliance checks and anomaly detection run", icon: Network },
+              { step: "04", title: "Final Verdict", desc: "Risk score and recommendation generated", icon: Shield },
+            ].map((item, index) => {
+              const Icon = item.icon
+              return (
+                <div key={item.step} className="relative">
+                  <Card className="border-slate-200 bg-white shadow-sm text-center h-full">
+                    <CardHeader className="pb-2">
+                      <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#002B5B] text-white mx-auto mb-3">
+                        <Icon className="h-7 w-7" />
+                      </div>
+                      <div className="text-sm font-mono text-[#002B5B] mb-1">Step {item.step}</div>
+                      <CardTitle className="text-lg text-slate-900">{item.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-slate-600">{item.desc}</p>
+                    </CardContent>
+                  </Card>
+                  {index < 3 && (
+                    <div className="hidden md:block absolute top-1/2 -right-2 transform -translate-y-1/2 z-10">
+                      <ChevronRight className="h-5 w-5 text-slate-400" />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Security Section */}
+      <section id="security" className="bg-slate-50 py-24 border-y border-slate-200">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <Badge variant="secondary" className="mb-4 text-[#002B5B] bg-[#002B5B]/10">
+              Enterprise Security
+            </Badge>
+            <h2 className="font-serif text-4xl font-bold text-slate-900 text-balance">
+              Built for Government Standards
+            </h2>
+            <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+              Security architecture designed for the most sensitive procurement environments
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <Card className="border-slate-200 bg-white shadow-sm text-center hover:shadow-md transition-shadow duration-300">
+              <CardHeader>
+                <div className="h-14 w-14 rounded-xl bg-[#002B5B]/10 flex items-center justify-center mx-auto mb-4">
+                  <Lock className="h-7 w-7 text-[#002B5B]" />
+                </div>
+                <CardTitle className="text-lg text-slate-900">On-Premise Deployment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-slate-600">
+                  Full control with air-gapped installation options for classified environments
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white shadow-sm text-center hover:shadow-md transition-shadow duration-300">
+              <CardHeader>
+                <div className="h-14 w-14 rounded-xl bg-[#002B5B]/10 flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="h-7 w-7 text-[#002B5B]" />
+                </div>
+                <CardTitle className="text-lg text-slate-900">Dockerized Architecture</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-slate-600">
+                  Containerized deployment for consistent, reproducible installations
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white shadow-sm text-center hover:shadow-md transition-shadow duration-300">
+              <CardHeader>
+                <div className="h-14 w-14 rounded-xl bg-[#002B5B]/10 flex items-center justify-center mx-auto mb-4">
+                  <Shield className="h-7 w-7 text-[#002B5B]" />
+                </div>
+                <CardTitle className="text-lg text-slate-900">Data Sovereignty</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-slate-600">
+                  No data leaves your infrastructure. Complete audit trails maintained
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="bg-[#002B5B] py-20">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white text-balance">
+            Ready to Protect Your Procurement Process?
+          </h2>
+          <p className="mt-6 text-lg text-slate-300 max-w-2xl mx-auto">
+            Join the growing number of government agencies using BidShield to ensure fair and transparent bidding.
+          </p>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/evaluation">
+              <Button
+                size="lg"
+                className="bg-white text-[#002B5B] hover:bg-slate-100 px-8 h-14 text-base transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                Access Portal
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-slate-900 py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-2">
+              <Shield className="h-6 w-6 text-white" />
+              <span className="text-lg font-semibold text-white">BidShield</span>
+            </div>
+            <div className="flex items-center gap-8 text-sm text-slate-400">
+              <Link href="#features" className="hover:text-white transition-colors">Features</Link>
+              <Link href="#demo" className="hover:text-white transition-colors">Demo</Link>
+              <Link href="#security" className="hover:text-white transition-colors">Security</Link>
+            </div>
+            <p className="text-sm text-slate-500">
+              Protecting procurement integrity
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
-  );
+  )
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { CheckCircle, Shield, FileText, Info } from 'lucide-react';
-import { demoTender } from '../lib/demoData';
+import { Bidder, demoTender } from '@/lib/demoData';
 
 interface CriteriaApprovalProps {
   onApprove: () => void;

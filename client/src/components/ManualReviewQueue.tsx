@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertCircle, FileText, Info, Check, X } from 'lucide-react';
-import { Bidder } from '../lib/demoData';
+import { Bidder } from '@/lib/demoData';
 
 interface ManualReviewQueueProps {
   bidders: Bidder[];

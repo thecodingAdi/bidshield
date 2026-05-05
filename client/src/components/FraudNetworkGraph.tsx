@@ -13,7 +13,7 @@ import {
   Controls,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { getFraudNetwork } from '../../lib/api';
+import { getFraudNetwork } from '@/lib/api';
 
 const GOV_COLORS = {
   BIDDER: '#1a3a5c',
