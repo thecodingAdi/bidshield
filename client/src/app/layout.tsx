@@ -22,7 +22,7 @@ export default function RootLayout({
       <body 
         className="font-sans antialiased bg-white text-slate-900" 
         style={{ 
-          // @ts-ignore
+          // @ts-expect-error
           '--font-inter': 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif',
           '--font-source-serif': '"Source Serif 4", Georgia, "Times New Roman", serif'
         }}

@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Shield, 
-  FileText, 
-  Network, 
+import { Button } from "../../components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card"
+import { Badge } from "../../components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
+import {
+  Shield,
+  FileText,
+  Network,
   LayoutDashboard,
   Settings,
   LogOut,
@@ -33,14 +33,14 @@ import {
   BarChart3,
   X
 } from "lucide-react"
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
   Cell,
   LineChart,
   Line
@@ -113,11 +113,11 @@ export default function DemoPage() {
             <span className="text-xl font-bold tracking-tight">BidShield</span>
           </Link>
         </div>
-        
+
         <nav className="flex-1 p-6" suppressHydrationWarning>
           <ul className="space-y-2">
             <li>
-              <button 
+              <button
                 onClick={() => setActiveTab("analysis")}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "analysis" ? "bg-white/10 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"}`}
               >
@@ -126,7 +126,7 @@ export default function DemoPage() {
               </button>
             </li>
             <li>
-              <button 
+              <button
                 onClick={() => setActiveTab("graph")}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "graph" ? "bg-white/10 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"}`}
               >
@@ -135,7 +135,7 @@ export default function DemoPage() {
               </button>
             </li>
             <li>
-              <button 
+              <button
                 onClick={() => setActiveTab("stats")}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "stats" ? "bg-white/10 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"}`}
               >
@@ -145,7 +145,7 @@ export default function DemoPage() {
             </li>
           </ul>
         </nav>
-        
+
         <div className="p-6 border-t border-white/10" suppressHydrationWarning>
           <Link href="/">
             <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-all">
@@ -242,12 +242,12 @@ export default function DemoPage() {
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-45 text-red-500/5 text-6xl font-black pointer-events-none uppercase">
                           Fraud Detected
                         </div>
-                        
+
                         <div className="border-b-2 border-slate-900 pb-4 mb-8">
                           <h4 className="text-xl font-black text-slate-900">BID PROPOSAL</h4>
                           <p className="text-xs font-bold text-slate-400 mt-1 uppercase">Beta Infra Group | Sector 4 Operations</p>
                         </div>
-                        
+
                         <div className="space-y-6 text-sm text-slate-700">
                           <div>
                             <p className="font-bold text-slate-400 uppercase text-[10px] tracking-widest mb-1">Address</p>
@@ -301,18 +301,17 @@ export default function DemoPage() {
                                 <p className="text-[10px] text-slate-400">{res.reason}</p>
                               </td>
                               <td className="px-6 py-4">
-                                <Badge className={`rounded-full px-3 py-1 font-bold text-[10px] uppercase border-none ${
-                                  res.status === 'Eligible' ? 'bg-emerald-100 text-emerald-700' :
-                                  res.status === 'Ineligible' ? 'bg-red-100 text-red-700' :
-                                  'bg-amber-100 text-amber-700'
-                                }`}>
+                                <Badge className={`rounded-full px-3 py-1 font-bold text-[10px] uppercase border-none ${res.status === 'Eligible' ? 'bg-emerald-100 text-emerald-700' :
+                                    res.status === 'Ineligible' ? 'bg-red-100 text-red-700' :
+                                      'bg-amber-100 text-amber-700'
+                                  }`}>
                                   {res.status}
                                 </Badge>
                               </td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div 
+                                    <div
                                       className={`h-full rounded-full ${res.score > 80 ? 'bg-emerald-500' : res.score > 60 ? 'bg-amber-500' : 'bg-red-500'}`}
                                       style={{ width: `${res.score}%` }}
                                     />
@@ -345,7 +344,7 @@ export default function DemoPage() {
                   <svg className="w-full h-full" viewBox="0 0 100 80">
                     <defs>
                       <pattern id="grid-demo" width="10" height="10" patternUnits="userSpaceOnUse">
-                        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#000" strokeWidth="0.05" opacity="0.1"/>
+                        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#000" strokeWidth="0.05" opacity="0.1" />
                       </pattern>
                       <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="2" markerHeight="2" orient="auto-start-reverse">
                         <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
@@ -366,7 +365,7 @@ export default function DemoPage() {
                             strokeWidth="0.5"
                             strokeDasharray={conn.type === 'address' ? "1,0.5" : "none"}
                           />
-                          <text x={(from.x+to.x)/2} y={(from.y+to.y)/2 - 1} textAnchor="middle" className="text-[1.5px] fill-slate-400 font-bold uppercase tracking-widest">{conn.label}</text>
+                          <text x={(from.x + to.x) / 2} y={(from.y + to.y) / 2 - 1} textAnchor="middle" className="text-[1.5px] fill-slate-400 font-bold uppercase tracking-widest">{conn.label}</text>
                         </g>
                       )
                     })}
@@ -386,7 +385,7 @@ export default function DemoPage() {
                           className="transition-all duration-300"
                         />
                         <text x={node.x} y={node.y + 7} textAnchor="middle" className={`text-[2px] font-black tracking-tight ${node.risk === 'high' ? 'fill-red-700' : 'fill-slate-600'}`}>{node.name}</text>
-                        {node.type === 'company' && <Building2 className="w-1 h-1" x={node.x-0.5} y={node.y-0.5} />}
+                        {node.type === 'company' && <Building2 className="w-1 h-1" x={node.x - 0.5} y={node.y - 0.5} />}
                       </g>
                     ))}
                   </svg>
@@ -456,7 +455,7 @@ export default function DemoPage() {
                 {/* Benford Chart */}
                 <Card className="border-none shadow-xl rounded-[2.5rem] overflow-hidden bg-white">
                   <CardHeader className="p-8 border-b border-slate-50">
-                    <CardTitle className="text-xl font-black text-slate-900 uppercase tracking-tighter">Benford's Law Analysis</CardTitle>
+                    <CardTitle className="text-xl font-black text-slate-900 uppercase tracking-tighter">Benford&apos;s Law Analysis</CardTitle>
                     <CardDescription className="font-bold text-slate-400">Financial Digit Frequency Distribution</CardDescription>
                   </CardHeader>
                   <CardContent className="p-8">
@@ -464,11 +463,11 @@ export default function DemoPage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={benfordData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="digit" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontWeight: 'bold'}} />
-                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontWeight: 'bold'}} />
-                          <Tooltip 
-                            contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                            cursor={{fill: '#f8fafc'}}
+                          <XAxis dataKey="digit" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontWeight: 'bold' }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontWeight: 'bold' }} />
+                          <Tooltip
+                            contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                            cursor={{ fill: '#f8fafc' }}
                           />
                           <Bar dataKey="expected" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Expected Frequency" />
                           <Bar dataKey="actual" fill="#002B5B" radius={[4, 4, 0, 0]} name="Actual Frequency">
@@ -484,9 +483,9 @@ export default function DemoPage() {
                         <AlertTriangle className="w-5 h-5 text-red-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-red-900">Digit '4' Anomaly Detected</p>
+                        <p className="text-sm font-black text-red-900">Digit &apos;4&apos; Anomaly Detected</p>
                         <p className="text-xs font-bold text-red-700/70 mt-1">
-                          Frequency of '4' is 49% higher than expected. This pattern is characteristic of manual manipulation of pricing data.
+                          Frequency of &apos;4&apos; is 49% higher than expected. This pattern is characteristic of manual manipulation of pricing data.
                         </p>
                       </div>
                     </div>
@@ -504,10 +503,10 @@ export default function DemoPage() {
                       <div className="relative w-48 h-48 flex items-center justify-center">
                         <svg className="w-full h-full -rotate-90">
                           <circle cx="96" cy="96" r="88" fill="none" stroke="#f1f5f9" strokeWidth="16" />
-                          <circle 
-                            cx="96" cy="96" r="88" fill="none" stroke="#dc2626" strokeWidth="16" 
+                          <circle
+                            cx="96" cy="96" r="88" fill="none" stroke="#dc2626" strokeWidth="16"
                             strokeDasharray={2 * Math.PI * 88}
-                            strokeDashoffset={2 * Math.PI * 88 * (1 - 0.41/100)}
+                            strokeDashoffset={2 * Math.PI * 88 * (1 - 0.41 / 100)}
                             strokeLinecap="round"
                           />
                         </svg>
@@ -516,7 +515,7 @@ export default function DemoPage() {
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Variance</span>
                         </div>
                       </div>
-                      
+
                       <div className="mt-10 text-center space-y-4 max-w-sm mx-auto">
                         <h4 className="text-lg font-black text-slate-900">High Collusion Probability</h4>
                         <p className="text-sm font-bold text-slate-500 leading-relaxed">
