@@ -47,7 +47,7 @@ export default function ManualReviewQueue({ bidders, onResolve }: ManualReviewQu
                     
                     <div className="relative p-5 bg-[#faf9f6] border border-[#d1d5db]">
                       <p className="text-base font-medium text-slate-800 leading-relaxed italic">
-                        "{doc?.extractedText}"
+                        &quot;{doc?.extractedText}&quot;
                       </p>
                       <div className="absolute top-0 right-0 bg-[#8b0000] text-white text-[9px] font-black px-3 py-1 uppercase tracking-widest">
                         OCR Confidence: {(bidder.ocr_confidence * 100).toFixed(0)}%

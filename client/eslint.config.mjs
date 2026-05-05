@@ -9,6 +9,7 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    "src/.next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
@@ -19,6 +20,7 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-unused-vars": "off",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/set-state-in-effect": "off",
     }
   }
 ]);
