@@ -1,10 +1,6 @@
 import type { Metadata } from 'next'
-import { Inter, Source_Serif_4 } from 'next/font/google'
 
 import './globals.css'
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const sourceSerif = Source_Serif_4({ subsets: ["latin"], variable: "--font-source-serif" });
 
 export const metadata: Metadata = {
   title: 'BidShield | AI-Powered Procurement Fraud Detection',
@@ -23,7 +19,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="bg-white" suppressHydrationWarning>
-      <body className={`${inter.variable} ${sourceSerif.variable} font-sans antialiased bg-white text-slate-900`} suppressHydrationWarning>
+      <body 
+        className="font-sans antialiased bg-white text-slate-900" 
+        style={{ 
+          // @ts-ignore
+          '--font-inter': 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif',
+          '--font-source-serif': '"Source Serif 4", Georgia, "Times New Roman", serif'
+        }}
+        suppressHydrationWarning
+      >
         {children}
 
       </body>
