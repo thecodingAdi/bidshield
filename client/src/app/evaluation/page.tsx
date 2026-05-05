@@ -1,337 +1,310 @@
-'use client';
+import Link from "next/link"
+import { Button } from "../../components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
+import { Badge } from "../../components/ui/badge"
+import {
+  Shield,
+  FileText,
+  Network,
+  LayoutDashboard,
+  Settings,
+  LogOut,
+  CheckCircle,
+  Circle,
+  AlertTriangle,
+  FileCheck,
+  ZoomIn,
+  ZoomOut,
+  Download,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react"
 
-import { useEffect, useState, useRef } from 'react';
-import { 
-  Shield, AlertTriangle, CheckCircle, Clock, Users, FileText, 
-  Activity, BarChart3, ChevronDown, ChevronUp, History, Download, 
-  Lock, Unlock, AlertCircle, Terminal, Search, ChevronRight
-} from 'lucide-react';
-import FraudNetworkGraph from '@/components/FraudNetworkGraph';
-import BenfordChart from '@/components/BenfordChart';
-import DemoLauncher from '@/components/DemoLauncher';
-import ManualReviewQueue from '@/components/ManualReviewQueue';
-import CriteriaApproval from '@/components/CriteriaApproval';
-import { demoBidders, demoTender, Bidder } from '@/lib/demoData';
-import { getFullAnalysis } from '@/lib/api';
-import { AuditLog, AuditEntry } from '@/lib/audit';
+const steps = [
+  { id: 1, name: "OCR Processing", status: "complete", description: "Text extraction complete" },
+  { id: 2, name: "Criteria Mapping", status: "complete", description: "12 criteria evaluated" },
+  { id: 3, name: "Graph Check", status: "current", description: "Analyzing network connections" },
+  { id: 4, name: "Final Review", status: "pending", description: "Awaiting completion" },
+]
 
-export default function Dashboard() {
-  const [data, setData] = useState<any>(null);
-  const [view, setView] = useState<'launch' | 'approval' | 'results'>('launch');
-  const [showAudit, setShowAudit] = useState(false);
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
-  const [isIntegrityValid, setIsIntegrityValid] = useState(true);
-  const [mounted, setMounted] = useState(false);
-  
-  const auditLog = useRef(new AuditLog());
+const insights = [
+  { type: "success", title: "Business Registration", description: "Valid registration verified with SEC" },
+  { type: "success", title: "Tax Compliance", description: "Tax clearance certificate valid until Dec 2024" },
+  { type: "warning", title: "Financial Capacity", description: "Net worth below recommended threshold" },
+  { type: "success", title: "Experience", description: "3 similar projects completed in last 5 years" },
+  { type: "error", title: "Address Match", description: "Shared address detected with another bidder" },
+]
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const addLog = async (actor: "SYSTEM" | "OFFICER", action: any, details: string, bidderId?: string) => {
-    await auditLog.current.addEntry({ actor, action, details, bidderId });
-    setAuditEntries(auditLog.current.getEntries());
-    setIsIntegrityValid(await auditLog.current.verifyIntegrity());
-  };
-
-  useEffect(() => {
-    const fetchBaseData = async () => {
-      try {
-        const res = await getFullAnalysis();
-        setData({
-          ...res.data,
-          tender: { bidders: demoBidders }
-        });
-      } catch (e) { console.error(e); }
-    };
-    fetchBaseData();
-  }, []);
-
-  const handleStartDemo = async () => {
-    setView('approval');
-    await addLog("SYSTEM", "EVALUATION", `Initiated demo evaluation for Tender ${demoTender.id}`);
-  };
-
-  const handleApproveRegistry = async () => {
-    setView('results');
-    await addLog("OFFICER", "CRITERIA_REGISTRY_APPROVAL", `Officer authorized evaluation registry (${demoTender.criteria.length} criteria)`);
-    
-    for (const bidder of demoBidders) {
-        if (bidder.status === 'ineligible') {
-            await addLog("SYSTEM", "EVALUATION", `Bidder Ineligible: ${bidder.rejection_reason}`, bidder.id);
-        } else if (bidder.status === 'manual_review') {
-            await addLog("SYSTEM", "EVALUATION", `Flagged for manual review: ${bidder.review_reason}`, bidder.id);
-        } else {
-            await addLog("SYSTEM", "EVALUATION", `Bidder Eligible (Turnover verified: ₹${((bidder.turnover || 0)/10000000).toFixed(1)}cr)`, bidder.id);
-        }
-    }
-    
-    await addLog("SYSTEM", "FRAUD_DETECTION", "Relationship alert: Director Rajesh Kumar linked to Bidders 2, 5");
-    await addLog("SYSTEM", "FRAUD_DETECTION", "Collusion risk score calculated as 79 for Bidders 2, 5");
-  };
-
-  const handleResolveManualReview = async (bidderId: string, resolution: 'eligible' | 'ineligible', value: number) => {
-    setData((prev: any) => {
-      const updatedBidders = prev.tender.bidders.map((b: Bidder) => {
-        if (b.id === bidderId) {
-          return { ...b, status: resolution, turnover: value, review_reason: undefined };
-        }
-        return b;
-      });
-      return { ...prev, tender: { bidders: updatedBidders } };
-    });
-
-    await addLog("OFFICER", "MANUAL_REVIEW", `Officer authorized ${bidderId} as ${resolution.toUpperCase()} (Value: ₹${(value/10000000).toFixed(1)}cr)`, bidderId);
-  };
-
-  const handleExportPDF = async () => {
-    await auditLog.current.exportToPDF(demoTender.id);
-  };
-
-  const handleTamperTest = async () => {
-    auditLog.current.tamper(2, "SYSTEM OVERRIDE: Modified eligibility status (ILLEGAL)");
-    setAuditEntries(auditLog.current.getEntries());
-    setIsIntegrityValid(await auditLog.current.verifyIntegrity());
-  };
-
-  const handleReset = () => {
-    auditLog.current = new AuditLog();
-    setAuditEntries([]);
-    setIsIntegrityValid(true);
-    setView('launch');
-  };
-
-  if (view === 'launch') return <DemoLauncher onStart={handleStartDemo} />;
-  
-  if (!data) return null;
-
-  const { tender, detections } = data;
-  const bidders = tender.bidders;
-  const eligible = bidders.filter((b: any) => b.status === 'eligible').length;
-  const ineligible = bidders.filter((b: any) => b.status === 'ineligible').length;
-  const manual = bidders.filter((b: any) => b.status === 'manual_review').length;
-
-  if (!mounted) return null;
-
+export default function EvaluationPage() {
   return (
-    <div className="min-h-screen bg-[#faf9f6]" suppressHydrationWarning>
-      {view === 'approval' && <CriteriaApproval onApprove={handleApproveRegistry} />}
+    <div className="min-h-screen bg-slate-50 flex" suppressHydrationWarning>
+      {/* Sidebar */}
+      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 flex flex-col">
+        <div className="p-6 border-b border-slate-200">
+          <Link href="/" className="flex items-center gap-2">
+            <Shield className="h-7 w-7 text-[#002B5B]" />
+            <span className="text-lg font-semibold text-slate-900">BidShield</span>
+          </Link>
+        </div>
 
-      {/* Header */}
-      <header className="bg-[#1a3a5c] text-white h-16 flex items-center px-6 sticky top-0 z-50" suppressHydrationWarning>
-        <div className="flex items-center gap-4 border-r border-white/10 pr-6 mr-6 h-10">
-          <div className="text-[10px] leading-tight font-black uppercase tracking-tighter">
-            भारत सरकार <br /> GOVT OF INDIA
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#b8860b]" />
-          <h1 className="text-base font-medium tracking-tight">BidShield — Procurement Integrity System</h1>
-        </div>
-        <div className="ml-auto flex items-center gap-6">
-          <div className="flex items-center gap-2 text-xs font-bold text-white/70">
-            <Users className="w-4 h-4" /> Officer: Ansh Adit
-          </div>
-          <button 
-            onClick={handleReset}
-            className="text-[11px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 hover:bg-white/20 transition-all"
-          >
-            Reset
+        <nav className="flex-1 p-4">
+          <ul className="space-y-1">
+            <li>
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 text-sm font-medium"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/evaluation"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#002B5B] text-white text-sm font-medium"
+              >
+                <FileText className="h-4 w-4" />
+                Evaluation
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/network"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 text-sm font-medium"
+              >
+                <Network className="h-4 w-4" />
+                Network Explorer
+              </Link>
+            </li>
+            <li>
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 text-sm font-medium">
+                <Settings className="h-4 w-4" />
+                Settings
+              </button>
+            </li>
+          </ul>
+        </nav>
+
+        <div className="p-4 border-t border-slate-200">
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 text-sm font-medium">
+            <LogOut className="h-4 w-4" />
+            Sign Out
           </button>
         </div>
-      </header>
-      
-      {/* Gold Separator */}
-      <div className="h-[2px] bg-[#b8860b]"></div>
-      
-      {/* Breadcrumb Bar */}
-      <div className="bg-[#f3f4f6] px-6 py-2 border-b border-[#d1d5db] flex items-center gap-2 text-[11px] font-bold text-[#4b5563] uppercase tracking-widest">
-        Home <ChevronRight className="w-3 h-3" /> Tenders <ChevronRight className="w-3 h-3" /> {demoTender.id} <ChevronRight className="w-3 h-3 text-[#1a3a5c]" /> Evaluation Matrix
-      </div>
+      </aside>
 
-      <main className="max-w-7xl mx-auto p-8 space-y-8 animate-in fade-in duration-500">
-        
-        {/* Official Status Bar */}
-        <div className="bg-white border border-[#d1d5db] flex flex-col md:flex-row shadow-sm">
-          <div className="p-5 border-r border-[#d1d5db] flex-1">
-            <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-1">Active Tender File</div>
-            <div className="text-xl font-bold text-[#1a3a5c]">{demoTender.title}</div>
-            <div className="text-xs font-bold text-[#4b5563] mt-1">{demoTender.id} | {demoTender.department}</div>
-          </div>
-          <div className="flex bg-[#f9fafb]">
-            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
-               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Eligible</div>
-               <div className="text-2xl font-black text-[#1e5631]">{eligible}</div>
-            </div>
-            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
-               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Ineligible</div>
-               <div className="text-2xl font-black text-[#8b0000]">{ineligible}</div>
-            </div>
-            <div className="px-8 py-5 flex flex-col items-center justify-center border-r border-[#d1d5db]">
-               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Review</div>
-               <div className="text-2xl font-black text-[#92400e]">{manual}</div>
-            </div>
-            <div className="px-8 py-5 flex flex-col items-center justify-center border-l-[3px] border-l-[#b8860b]">
-               <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-widest mb-2">Flags</div>
-               <div className="text-2xl font-black text-[#1a3a5c]">2</div>
-            </div>
-          </div>
-        </div>
-
-        <ManualReviewQueue bidders={bidders} onResolve={handleResolveManualReview} />
-
-        {/* Bidder Matrix Table */}
-        <div className="bg-white border border-[#d1d5db] shadow-sm overflow-hidden">
-          <div className="bg-[#f3f4f6] px-5 py-4 border-b border-[#d1d5db] flex items-center justify-between">
-            <h2 className="text-[14px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
-              <Terminal className="w-4 h-4" /> Bidder Eligibility Matrix
-            </h2>
-            <div className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest">
-              Officer Authorized: {mounted ? new Date().toLocaleDateString() : '—'}
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-white border-b border-[#d1d5db]">
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">ID</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Bidder Entity</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Evaluation Status</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Turnover (₹)</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">OCR Conf.</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Risk Index</th>
-                  <th className="px-5 py-3 text-[11px] font-black text-[#6b7280] uppercase tracking-widest">Decision Logs</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {bidders.map((bidder: Bidder, idx: number) => (
-                  <tr key={bidder.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-[#faf9f6]'} hover:bg-blue-50/30 transition-colors`}>
-                    <td className="px-5 py-4 font-mono text-[11px] font-bold text-[#6b7280]">{bidder.id}</td>
-                    <td className="px-5 py-4 font-bold text-slate-900 text-sm">{bidder.name}</td>
-                    <td className="px-5 py-4">
-                      <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
-                        bidder.status === 'eligible' ? 'bg-[#1e5631] text-white' : 
-                        bidder.status === 'ineligible' ? 'bg-[#8b0000] text-white' : 'bg-[#92400e] text-white'
-                      }`}>
-                        {bidder.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-[13px] font-bold text-[#1a3a5c]">
-                      {bidder.turnover ? `₹${(bidder.turnover / 10000000).toFixed(2)}cr` : '—'}
-                    </td>
-                    <td className="px-5 py-4 font-mono text-[11px] font-bold text-slate-500">
-                        {(bidder.ocr_confidence * 100).toFixed(0)}%
-                    </td>
-                    <td className="px-5 py-4">
-                        {(bidder.collusion_risk || 0) >= 40 ? (
-                           <span className="bg-[#8b0000] text-white px-2 py-0.5 text-[9px] font-black uppercase">RISK {bidder.collusion_risk}</span>
-                        ) : '—'}
-                    </td>
-                    <td className="px-5 py-4 text-[11px] text-slate-500 font-medium leading-relaxed italic">
-                      {bidder.rejection_reason || bidder.review_reason || bidder.flags?.join(', ') || 'System authorized'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Evaluation Visualizations */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white border border-[#d1d5db] shadow-sm h-[500px] flex flex-col">
-            <div className="bg-[#f3f4f6] px-5 py-3 border-b border-[#d1d5db] flex items-center justify-between">
-               <h3 className="text-[13px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
-                 <Activity className="w-4 h-4" /> Relationship Network Graph
-               </h3>
-            </div>
-            <div className="flex-1 bg-white">
-              <FraudNetworkGraph />
-            </div>
-          </div>
-
-          <div className="bg-white border border-[#d1d5db] shadow-sm flex flex-col">
-            <div className="bg-[#f3f4f6] px-5 py-3 border-b border-[#d1d5db] flex items-center justify-between">
-               <h3 className="text-[13px] font-bold text-[#1a3a5c] uppercase tracking-wider flex items-center gap-2">
-                 <BarChart3 className="w-4 h-4" /> Statistical Distribution (Benford)
-               </h3>
-            </div>
-            <div className="p-8 flex-1">
-              <BenfordChart data={detections.benfords_law} />
-            </div>
-          </div>
-        </div>
-
-        {/* Compliance Audit Section */}
-        <div className={`bg-white border border-[#d1d5db] shadow-md transition-all duration-300 ${!isIntegrityValid ? 'border-l-[4px] border-l-[#8b0000]' : ''}`}>
-          <div className="p-5 flex items-center justify-between bg-[#f3f4f6] border-b border-[#d1d5db]">
+      {/* Main Content */}
+      <main className="flex-1 ml-64">
+        <header className="bg-white border-b border-slate-200 px-8 py-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className={`p-2 ${!isIntegrityValid ? 'bg-[#8b0000] text-white' : 'bg-[#1a3a5c] text-white'}`}>
-                {isIntegrityValid ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
-              </div>
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" className="text-slate-600">
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+              </Link>
               <div>
-                <h2 className="text-[13px] font-black text-[#1a3a5c] uppercase tracking-wider">Audit Trail & Compliance Registry</h2>
-                <div className="flex items-center gap-3 mt-0.5">
-                  <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${
-                    isIntegrityValid ? 'text-[#1e5631]' : 'text-[#8b0000]'
-                  }`}>
-                    {isIntegrityValid ? '✓ Integrity Verified' : '✗ Security Breach Detected'}
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-400">| {auditEntries.length} Operations Hashed</span>
-                </div>
+                <h1 className="text-2xl font-semibold text-slate-900">Evaluation Workspace</h1>
+                <p className="text-sm text-slate-500">TND-2024-002 - Office Supplies Contract</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={handleExportPDF}
-                className="px-4 py-2 bg-[#1a3a5c] hover:bg-[#0f2440] text-white text-[11px] font-black uppercase tracking-widest transition-all"
-              >
-                Download Signed Audit Log
-              </button>
-              <button onClick={() => setShowAudit(!showAudit)} className="text-slate-400">
-                {showAudit ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </button>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" className="text-slate-600">
+                Skip Bidder
+              </Button>
+              <Button className="bg-[#002B5B] hover:bg-[#001d3d] text-white">
+                Approve Bidder
+              </Button>
             </div>
           </div>
-          
-          {showAudit && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-[#faf9f6] border-b border-[#d1d5db]">
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Entry ID</th>
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Actor</th>
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Action</th>
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Description</th>
-                    <th className="px-6 py-2 text-[9px] font-black text-[#6b7280] uppercase tracking-widest">Chain Hash</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-[10px]">
-                  {auditEntries.slice().reverse().map((entry) => (
-                    <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-3 font-bold text-slate-400">{entry.id.padStart(4, '0')}</td>
-                      <td className="px-6 py-3 font-bold text-[#1a3a5c]">{entry.actor}</td>
-                      <td className="px-6 py-3 font-bold text-slate-700">{entry.action}</td>
-                      <td className="px-6 py-3 text-slate-500 uppercase">{entry.details}</td>
-                      <td className="px-6 py-3 text-slate-400">{entry.currentHash.substring(0, 16)}...</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        </header>
 
-        <div className="flex justify-center pt-8 border-t border-gray-200">
-           <button 
-             onClick={handleTamperTest}
-             className="text-[9px] font-black text-[#d1d5db] hover:text-[#8b0000] uppercase tracking-[0.3em] transition-colors"
-           >
-             Trigger System Integrity Test (Tamper Simulation)
-           </button>
+        <div className="p-8">
+          {/* Verdict Card */}
+          <Card className="border-slate-200 bg-white mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-full bg-amber-100 flex items-center justify-center">
+                    <AlertTriangle className="h-7 w-7 text-amber-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Manual Review Required</h2>
+                    <p className="text-sm text-slate-500">Bidder: XYZ Holdings Ltd. | Score: 72/100</p>
+                  </div>
+                </div>
+                <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 text-sm px-4 py-1.5">
+                  Pending Review
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Split View */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Document Viewer */}
+            <Card className="border-slate-200 bg-white">
+              <CardHeader className="border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                    <FileCheck className="h-5 w-5 text-[#002B5B]" />
+                    Document Viewer
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <ZoomOut className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="h-[600px] bg-slate-100 flex flex-col">
+                  {/* PDF Mock */}
+                  <div className="flex-1 p-6 overflow-auto">
+                    <div className="bg-white rounded-lg shadow-sm p-8 min-h-full">
+                      <div className="border-b border-slate-200 pb-4 mb-6">
+                        <h3 className="text-xl font-bold text-slate-900">BID PROPOSAL</h3>
+                        <p className="text-sm text-slate-500 mt-1">XYZ Holdings Ltd.</p>
+                      </div>
+
+                      <div className="space-y-4 text-sm text-slate-700">
+                        <div>
+                          <h4 className="font-semibold text-slate-900 mb-2">1. Company Information</h4>
+                          <p className="pl-4">Registration No: <span className="bg-emerald-100 text-emerald-800 px-1 rounded">2019-00234567</span></p>
+                          <p className="pl-4">Address: <span className="bg-red-100 text-red-800 px-1 rounded">Unit 5B, Commerce Tower, Manila</span></p>
+                          <p className="pl-4">Established: 2019</p>
+                        </div>
+
+                        <div>
+                          <h4 className="font-semibold text-slate-900 mb-2">2. Financial Statement</h4>
+                          <p className="pl-4">Annual Revenue: PHP 45,000,000</p>
+                          <p className="pl-4">Net Worth: <span className="bg-amber-100 text-amber-800 px-1 rounded">PHP 8,500,000</span></p>
+                        </div>
+
+                        <div>
+                          <h4 className="font-semibold text-slate-900 mb-2">3. Technical Proposal</h4>
+                          <p className="pl-4 text-slate-600">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua...</p>
+                        </div>
+
+                        <div>
+                          <h4 className="font-semibold text-slate-900 mb-2">4. Price Quotation</h4>
+                          <p className="pl-4">Total Bid Amount: PHP 12,450,000</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="bg-white border-t border-slate-200 px-4 py-3 flex items-center justify-between">
+                    <Button variant="ghost" size="sm" className="text-slate-600">
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <span className="text-sm text-slate-500">Page 1 of 12</span>
+                    <Button variant="ghost" size="sm" className="text-slate-600">
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AI Insights Panel */}
+            <div className="space-y-6">
+              {/* Progress Stepper */}
+              <Card className="border-slate-200 bg-white">
+                <CardHeader className="border-b border-slate-200">
+                  <CardTitle className="text-lg font-semibold text-slate-900">Evaluation Progress</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    {steps.map((step, index) => (
+                      <div key={step.id} className="flex gap-4">
+                        <div className="flex flex-col items-center">
+                          {step.status === "complete" ? (
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                              <CheckCircle className="h-5 w-5 text-emerald-600" />
+                            </div>
+                          ) : step.status === "current" ? (
+                            <div className="h-8 w-8 rounded-full bg-[#002B5B] flex items-center justify-center">
+                              <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                            </div>
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
+                              <Circle className="h-5 w-5 text-slate-400" />
+                            </div>
+                          )}
+                          {index < steps.length - 1 && (
+                            <div className={`w-0.5 h-8 ${step.status === "complete" ? "bg-emerald-200" : "bg-slate-200"}`} />
+                          )}
+                        </div>
+                        <div className="pt-1">
+                          <p className={`text-sm font-medium ${step.status === "current" ? "text-[#002B5B]" : step.status === "complete" ? "text-slate-900" : "text-slate-400"}`}>
+                            {step.name}
+                          </p>
+                          <p className="text-xs text-slate-500">{step.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* AI Insights */}
+              <Card className="border-slate-200 bg-white">
+                <CardHeader className="border-b border-slate-200">
+                  <CardTitle className="text-lg font-semibold text-slate-900">AI Insights</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y divide-slate-100">
+                    {insights.map((insight, index) => (
+                      <div key={index} className="p-4 flex items-start gap-3">
+                        {insight.type === "success" ? (
+                          <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+                        ) : insight.type === "warning" ? (
+                          <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{insight.title}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{insight.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card className="border-slate-200 bg-white">
+                <CardContent className="p-4">
+                  <div className="flex gap-3">
+                    <Link href="/network" className="flex-1">
+                      <Button variant="outline" className="w-full text-[#002B5B] border-[#002B5B] hover:bg-[#002B5B]/5">
+                        <Network className="h-4 w-4 mr-2" />
+                        View in Network
+                      </Button>
+                    </Link>
+                    <Button variant="outline" className="flex-1 text-slate-600">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export Report
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </main>
     </div>
-  );
+  )
 }
